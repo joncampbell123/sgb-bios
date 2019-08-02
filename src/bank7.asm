@@ -1,7 +1,7 @@
 .include "includes.inc"
 
 .segment "CODE7"
-.org $070000
+.org $078000
 
 
 	baseinc $078000, $088000

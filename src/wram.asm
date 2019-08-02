@@ -98,7 +98,39 @@ PaletteMakerSelectedColor: .res 2
 .segment "BSS"
 .org $000100
 
-.res $0B1F
+.res $0115
+
+SomeMutex: .res 1 ; TODO: this seems to be a mutex, but what is its purpose?
+
+RunGDMA4: .res 1
+
+.res $0069
+
+WhichFramebuffer: .res 1
+.res 1
+PtrToOtherFramebuffer: .res 2
+PtrToFramebuffer: .res 2
+
+.res 1
+
+TmpFramebufPtrHigh: .res 1
+
+.res 8
+
+CurLYAndBufNum: .res 1
+.res 1
+CurLCDCHRRow: .res 1
+.res 1
+CurCHRRow: .res 2
+.res 4
+
+RemainingCHRRows: .res 1
+
+.res $002F
+
+DoCheckButtonSequences: .res 1 ; TODO: this is certainly something else
+
+.res $0954
 
 MenuController: .res 1
 .res 1
@@ -183,6 +215,11 @@ byte_7E1712: .res 1
 
 .segment "BSS7E"
 .org $7E2000
+
+.res $3000
+
+Framebuffer_7E5000: .res $1800
+Framebuffer_7E6800: .res $1800
 
 
 .segment "BSS7F"

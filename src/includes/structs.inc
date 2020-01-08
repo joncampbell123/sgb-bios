@@ -125,3 +125,7 @@
 	xCoord .word
 	yCoord .word
 .endstruct
+.macro coordPair xCoord, yCoord
+	.word xCoord
+	.word yCoord
+.endmac

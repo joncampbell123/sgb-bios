@@ -4,6 +4,7 @@
 
 .include "includes/snes.inc"
 .include "includes/icd_io.inc"
+.include "includes/enums.inc"
 .include "includes/structs.inc"
 .include "includes/constants.inc"
 .include "includes/macros.inc"

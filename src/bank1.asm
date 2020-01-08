@@ -45,7 +45,64 @@
 .endproc
 
 
-	baseinc $01DA35, $01E452
+	baseinc $01DA35, $01E25F
+
+
+.export CursorMovementVectors
+CursorMovementVectors:
+    coordPair $0000, $0000 ; None
+    coordPair $0002, $0000 ; R
+    coordPair $FFFE, $0000 ; L
+    coordPair $0000, $0000 ; L+R
+    coordPair $0000, $0002 ; D
+    coordPair $0002, $0002 ; D+R
+    coordPair $FFFE, $0002 ; D+L
+    coordPair $0000, $0000 ; D+L+R
+    coordPair $0000, $FFFE ; U
+    coordPair $0002, $FFFE ; U+R
+    coordPair $FFFE, $FFFE ; U+L
+    coordPair $0000, $0000 ; U+L+R
+    coordPair $0000, $0000 ; U+D
+    coordPair $0000, $0000 ; U+D+R
+    coordPair $0000, $0000 ; U+D+L
+    coordPair $0000, $0000 ; U+D+L+R
+
+
+    baseinc $01E29F, $01E389
+
+
+.export SpeedButtonSequenceTable
+SpeedButtonSequenceTable:
+    .word $0020 ; L
+    .word $0010 ; R
+    .word $0000 ; None
+    .word $0010 ; R
+    .word $0020 ; L
+    .word $0000 ; None
+    .word $0020 ; L
+    .word $0010 ; R
+    .word $4100 ; Y+Right, optional though?
+
+.export SoundButtonSequenceTable
+SoundButtonSequenceTable:
+    .word $0010 ; R
+    .word $0020 ; L
+    .word $0000 ; None
+    .word $0020 ; L
+    .word $0010 ; R
+    .word $0000 ; None
+    .word $0010 ; R
+    .word $0020 ; L
+
+.export DpadNoUDLRTable
+DpadNoUDLRTable:
+    .byte %0000, %0001, %0010, %0000
+    .byte %0100, %0101, %0110, %0100
+    .byte %1000, %1001, %1010, %1000
+    .byte %0000, %0001, %0010, %0000
+
+
+    baseinc $01E3BB, $01E452
 
 
 .export MultBy0x140Table

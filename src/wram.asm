@@ -4,17 +4,22 @@
 .zeropage
 .org $000000
 
-.res 5
+ICD2CTLTemp: ; .res 1
+MouseMotionRadius: .res 1
+
+.res 4
 
 IndirectLongJumpIndexedPtr: .tag FarPtr
 
-EightBitCounter: .res 1
+EightBitCounter: ; res 1
+GBInput: .res 1
 
 .res 7
 
-APUTransferIndex: .res 1
+APUTransferIndex: ; .res 1
+PlayerInput: .res 2
 
-.res 7
+.res 6
 
 IndirectionPtr: .tag FarPtr
 
@@ -98,7 +103,27 @@ PaletteMakerSelectedColor: .res 2
 .segment "BSS"
 .org $000100
 
-.res $0115
+.res $0040
+
+Player1HeldButtons: .res 2
+Player1PressedButtons: .res 2
+
+.res 4
+
+Player2HeldButtons: .res 2
+Player2PressedButtons: .res 2
+
+.res $000C
+
+P1GBInput: .res 1
+
+.res 4
+
+SpeedButtonSeqIndex: .res 1
+SoundButtonSeqIndex: .res 1
+ButtonSequenceSoundToggle: .res 1
+
+.res $00B5
 
 SomeMutex: .res 1 ; TODO: this seems to be a mutex, but what is its purpose?
 
@@ -130,9 +155,32 @@ RemainingCHRRows: .res 1
 
 DoCheckButtonSequences: .res 1 ; TODO: this is certainly something else
 
-.res $0954
+.res 32
 
-MenuController: .res 1
+CurClockSpeed: .res 1
+CurNbControllers: .res 1
+
+.res 5
+
+MultiplayerControl: .res 1
+
+.res $4E
+
+SFXANum: .res 1
+SFXBNum: .res 1
+SFXAttrs: .res 1
+
+.res $08C0
+
+MapSNES_BToGB_A: .res 1
+
+.res 23
+
+PlayerRequestedClosing: .res 1
+
+.res 2
+
+MenuController: .res 1 ; 0 = P1, 1 = Mouse, 2 = P2
 .res 1
 MenuCursorXPos: .res 1
 MenuCursorYPos: .res 1
@@ -140,7 +188,14 @@ PrevMenuCursorXPos: .res 1
 PrevMenuCursorYPos: .res 1
 SelectedMenuFeature: .res 1
 
-.res $02DA
+.res $0023
+
+AHeld: .res 1
+BHeld: .res 1
+MouseRightHoldCounter: .res 1
+MouseLeftHoldCounter:  .res 1
+
+.res $02B3
 
 .res 1
 
@@ -179,9 +234,11 @@ Player2Input: .res 2
 Player3Input: .res 2
 Player4Input: .res 2
 Player5Input: .res 2
-ResetPlayerInput: .res 2
-
-.res 3
+IgnorePlayer1Input: .res 1
+IgnorePlayer2Input: .res 1
+IgnorePlayer3Input: .res 1
+IgnorePlayer4Input: .res 1
+IgnorePlayer5Input: .res 1
 
 Multi5LeftPortStrobeless:  .res 1
 Multi5LeftPortStrobed:     .res 1
@@ -204,6 +261,7 @@ MustChangeSensitivity: .res 2
 
 StackBottom: .res 1
 
+MenuSprites:
 .repeat 8
 	.tag Sprite
 .endrep

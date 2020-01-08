@@ -79,7 +79,356 @@
 
 
 ResetIO = $0082B1
-	baseinc $008166, $00AC43
+	baseinc $008166, $0086CE
+
+
+.proc PollJoypadsTrampoline
+	JSR PollJoypads
+	RTS
+.endproc
+
+
+	baseinc $0086D2, $008712
+
+
+.proc PollJoypads
+.a8
+	JSR PollMulti5
+	JSR Multi5ConnectCheck
+	LDA IgnorePlayer1Input
+	CMP #1
+	BEQ :+
+	STZ Player1Input
+	STZ Player1Input+1
+:
+	JSR SanitizePlayerDpads
+	JSR UpdatePressedAndHeldButtons
+	LDA DoCheckButtonSequences
+	BEQ :+
+	JSR CheckSpeedButtonSequence
+	JSR CheckSoundButtonSequence
+:
+	RTS
+.endproc
+
+.proc UpdatePressedAndHeldButtons
+	seta16
+	LDA Player1HeldButtons
+	EOR #$FFFF
+	AND Player1Input
+	STA Player1PressedButtons
+	LDA Player1Input
+	STA Player1HeldButtons
+
+	LDA Player2HeldButtons
+	EOR #$FFFF
+	AND Player2Input
+	STA Player2PressedButtons
+	LDA Player2Input
+	STA Player2HeldButtons
+	seta8
+	RTS
+.endproc
+
+.proc SanitizePlayerDpads
+.a8
+.i8
+	LDX #0
+:
+	LDA Player1Input+1, X
+	AND #$F
+	TAY
+	LDA Player1Input+1, X
+	AND #$F0
+	ORA DpadNoUDLRTable, Y
+	STA Player1Input+1, X
+	INX
+	INX
+	CPX #8
+	BNE :-
+	RTS
+.endproc
+
+.proc CheckSpeedButtonSequence
+.a8
+.i8
+	LDA SpeedButtonSeqIndex
+	ASL
+	TAY
+	seta16
+	LDA SpeedButtonSequenceTable, Y
+	CMP Player1HeldButtons
+	seta8
+	BNE @mismatch
+	INC SpeedButtonSeqIndex
+	LDA SpeedButtonSeqIndex
+	CMP #9
+	BNE @done
+	STZ SpeedButtonSeqIndex
+	LDA CurClockSpeed
+	DEC
+	AND #3
+	STA CurClockSpeed
+	JSR WriteICD2CTL
+	LDA #SfxA::ROCKET_LAUNCHER_14
+	STA SFXANum
+	LDA #0
+	STA SFXAttrs
+	STZ Player1Input+1
+@done:
+	RTS
+
+@mismatch:
+	INC SpeedButtonSeqIndex
+	LDA SpeedButtonSeqIndex
+	CMP #9
+	BNE @fail
+	seta16
+	LDA Player1HeldButtons
+	seta8
+	BNE @fail
+	STZ Player1Input+1
+	LDA CurClockSpeed
+	DEC
+	AND #3
+	BNE :+
+	LDA #3
+:
+	STA CurClockSpeed
+	JSR WriteICD2CTL
+	LDA #SfxA::ROCKET_LAUNCHER_14
+	STA SFXANum
+	LDA #0
+	STA SFXAttrs
+@fail:
+	STZ SpeedButtonSeqIndex
+	RTS
+.endproc
+
+.proc CheckSoundButtonSequence
+.a8
+.i8
+	LDA SoundButtonSeqIndex
+	ASL
+	TAY
+	seta16
+	LDA SoundButtonSequenceTable, Y
+	CMP Player1HeldButtons
+	seta8
+	BNE @fail
+	INC SoundButtonSeqIndex
+	LDA SoundButtonSeqIndex
+	CMP #8
+	BNE @done
+	STZ SoundButtonSeqIndex
+	LDA ButtonSequenceSoundToggle
+	INC
+	AND #1
+	STA ButtonSequenceSoundToggle
+	BNE :+
+	LDA #SfxB::SFXB_82
+	STA SFXBNum
+@done:
+	RTS
+
+@fail:
+	STZ SoundButtonSeqIndex
+	RTS
+
+:
+	LDA #SfxB::SFXB_81
+	STA SFXBNum
+	RTS
+.endproc
+
+
+.proc EmptyFunc00881F
+	RTS
+.endproc
+
+
+	baseinc $008820, $00A781
+
+
+.proc ApplyControllerMovement
+.a8
+	LDA WhichActiveController
+	BEQ @p1
+	CMP #1
+	BNE @p2
+	LDA IsMouseConnected+1
+	LSR
+	BCC @noController
+	JSR ApplyHorizontalMouseMovement
+	JSR ApplyVerticalMouseMovement
+@noController:
+	RTS
+
+@p2:
+	LDA Player2HeldButtons+1
+@pad:
+	JSR ApplyPadMovement
+	RTS
+
+@p1:
+	LDA Player1HeldButtons+1
+	BRA @pad
+.endproc
+
+.proc ApplyHorizontalMouseMovement
+.a8
+	LDA HorizontalMouseMovement+1
+	BMI @moveUp
+	LDA MenuSprites + Sprite::xPos, X
+	CLC
+	ADC HorizontalMouseMovement+1
+	BCS :+
+	CMP #$FD
+	BCC :++
+:
+	LDA #$FD
+:
+	STA MenuSprites + Sprite::xPos, X
+	RTS
+
+@moveUp:
+	AND #$7F
+	STA MouseMotionRadius
+	LDA MenuSprites + Sprite::xPos, X
+	SEC
+	SBC MouseMotionRadius
+	BCC :+
+	CMP #0
+	BCS :++
+:
+	LDA #0
+:
+	STA MenuSprites + Sprite::xPos, X
+	RTS
+.endproc
+
+.proc ApplyVerticalMouseMovement
+.a8
+	LDA VerticalMouseMovement+1
+	BMI @moveUp
+	LDA MenuSprites + Sprite::yPos, X
+	CLC
+	ADC VerticalMouseMovement+1
+	BCS :+
+	CMP #$D2
+	BCC :++
+:
+	LDA #$D2
+:
+	STA MenuSprites + Sprite::yPos, X
+	RTS
+
+@moveUp:
+	AND #$7F
+	STA MouseMotionRadius
+	LDA MenuSprites + Sprite::yPos, X
+	SEC
+	SBC MouseMotionRadius
+	BCC :+
+	CMP #2
+	BCS :++
+:
+	LDA #2
+:
+	STA MenuSprites + Sprite::yPos, X
+	RTS
+.endproc
+
+	baseinc $00A7FF, $00A873
+
+.proc IsAHeld
+.a8
+	LDA WhichActiveController
+	BEQ @p1
+	CMP #1
+	BNE @p2
+	LDA Player2Input
+	AND #$F
+	BEQ @done
+	LDA CurrentMouseButtons+1
+	AND #1 ; Left button
+@done:
+	RTS
+
+@p1:
+	LDA Player1HeldButtons
+	AND #$80 ; A
+	BNE @done
+	LDA MapSNES_BToGB_A
+	BEQ @done
+	LDA Player1HeldButtons+1
+	AND #$80 ; B
+	RTS
+
+@p2:
+	LDA Player2Input
+	AND #$F
+	BNE @nope
+	LDA Player2HeldButtons
+	AND #$80 ; A
+	BNE @done
+	LDA MapSNES_BToGB_A
+	BEQ @done
+	LDA Player2HeldButtons+1
+	AND #$80 ; B
+	RTS
+@nope:
+	LDA #0
+	RTS
+.endproc
+
+	baseinc $00A8B7, $0A90F
+
+.proc ApplyPadMovement
+	seta16
+	AND #$F
+	ASL
+	ASL
+	TAY
+	LDA CursorMovementVectors + CoordPair::xCoord, Y
+	BMI @moveUp
+	CLC
+	ADC MenuSprites + Sprite::xPos, X
+	CMP #$FD
+	BCC @storeXPos
+	LDA #$FD
+@storeXPos:
+	STA MenuSprites + Sprite::xPos, X
+
+	LDA CursorMovementVectors + CoordPair::yCoord, Y
+	CLC
+	ADC MenuSprites + Sprite::yPos, X
+	CMP #$D2
+	BCS @hitBottom
+	CMP #2
+	BCS @storeYPos
+	LDA #2
+@storeYPos:
+	STA MenuSprites + Sprite::yPos, X
+	seta8
+	RTS
+
+.a16
+@moveUp:
+	CLC
+	ADC MenuSprites + Sprite::xPos, X
+	CMP #$FD
+	BCC @storeXPos
+	LDA #0
+	BRA @storeXPos
+
+@hitBottom:
+	LDA #$D2
+	BRA @storeYPos
+.endproc
+
+
+	baseinc $00A958, $00AC43
 
 
 .proc UploadDefaultAPUProgram
@@ -402,7 +751,136 @@ ResetIO = $0082B1
 .endproc
 
 
-	baseinc $00BAA4, $00C573
+	baseinc $00BAA4, $00BB7B
+
+
+.proc WriteICD2CTL
+.a8
+	LDA CurClockSpeed
+	AND #3
+	STA ICD2CTLTemp
+	LDA CurNbControllers
+	AND #$30
+	ORA ICD2CTLTemp
+	ORA #$80
+	STA f:ICD2CTL
+	RTS
+.endproc
+
+
+	baseinc $00BB90, $00BC7F
+
+
+.proc SendInputsToGB
+.a8
+.i8
+	LDA MultiplayerControl
+	BEQ :+
+	LDX #1
+	JSR SendPlayerInputToGB
+	LDA MultiplayerControl
+	CMP #1
+	BEQ :+
+	LDX #2
+	JSR SendPlayerInputToGB
+	LDX #3
+	JSR SendPlayerInputToGB
+:
+	LDX #0
+	JSR SendPlayerInputToGB
+	RTS
+.endproc
+
+.proc SendPlayerInputToGB
+.a8
+.i8
+	LDA TransmitOnlyStartSelect
+	BNE @onlyStartSelect
+	TXA
+	ASL
+	TAY
+	LDA Player1Input, Y
+	AND #$F
+	BNE @disconnected
+	LDA Player1Input  , Y
+	STA PlayerInput
+	LDA Player1Input+1, Y
+	STA PlayerInput+1
+	JSR ConvertSNESInputToGB
+	RTS
+
+@disconnected:
+	LDA #$FF
+	STA P1GBInput
+	STA f:ICD2P1, X
+	RTS
+
+@onlyStartSelect:
+	TXA
+	ASL
+	TAY
+	LDA Player1Input+1, Y ; Possible mistake?
+	AND #$F
+	BNE @disconnected
+	STZ PlayerInput
+	LDA Player1Input+1, Y
+	AND #$30
+	STA PlayerInput+1
+	JSR ConvertSNESInputToGB
+	RTS
+.endproc
+
+.proc ConvertSNESInputToGB
+.a8
+	STZ GBInput
+	LDA PlayerInput
+	AND #$80 ; A
+	LSR
+	LSR
+	LSR
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #$80 ; B
+	LSR
+	LSR
+	LDY MapSNES_BToGB_A
+	BEQ :+
+	LSR
+:
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #$10 ; Start
+	ASL
+	ASL
+	ASL
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #$20 ; Select
+	ASL
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #8 ; Up
+	LSR
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #4 ; Down
+	ASL
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #$40 ; Y
+	LSR
+	TSB GBInput
+	LDA PlayerInput+1
+	AND #3 ; Left and Right
+	ORA GBInput
+	EOR #$FF
+	STA P1GBInput
+	STA f:ICD2P1, X
+	RTS
+.endproc
+
+
+	baseinc $00BD2C, $00C573
 
 
 .proc ProcessSOU_TRN
@@ -450,7 +928,402 @@ ResetIO = $0082B1
 .endproc
 
 
-	baseinc $00C5BC, $00FFC0
+	baseinc $00C5BC, $00C9F0
+
+
+	.byte "START OF MULTI5 BIOS"
+.proc PollMulti5
+	PHP
+	setaxy8
+	STZ Multi5Present
+:	; Wait for auto-poll to end
+	LDA VBLSTATUS
+	AND #1
+	BNE :-
+	LDA JOY1CUR+1
+	STA Player1Input+1
+	LDA JOY1CUR
+	STA Player1Input
+	AND #$F
+	STA IgnorePlayer1Input
+	LDA f:JOY0
+	LSR
+	ROL IgnorePlayer1Input
+
+	LDA JOY2CUR+1
+	STA Player2Input+1
+	LDA JOY2CUR
+	STA Player2Input
+	AND #$F
+	STA IgnorePlayer2Input
+
+	LDA JOY2B1CUR+1
+	STA Player3Input+1
+	LDA JOY2B1CUR
+	STA Player3Input
+	AND #$F
+	STA IgnorePlayer3Input
+	LDA f:JOY1
+	LSR
+	ROL IgnorePlayer2Input
+	LSR
+	ROL IgnorePlayer3Input
+
+	LDA #$7F
+	STA WRIO
+	LDY #$10
+:
+	LDA f:JOY1
+	seta16
+	LSR
+	ROL Player4Input
+	LSR
+	ROL Player5Input
+	seta8
+	DEY
+	BNE :-
+	LDA Player4Input
+	AND #$F
+	STA IgnorePlayer4Input
+	LDA Player5Input
+	AND #$F
+	STA IgnorePlayer5Input
+	LDA f:JOY1
+	LSR
+	ROL z:$001E ; `IgnorePlayer4Input` is at $0F1E, this looks like a typo
+	LSR
+	ROL IgnorePlayer5Input
+
+	LDA #$FF
+	STA WRIO
+	PLP
+	RTS
+.endproc
+	.byte "NINTENDO SHVC MULTI5 BIOS Ver2.10"
+	.byte "END OF MULTI5 BIOS"
+
+	.byte "START OF MULTI5 CONNECT CHECK"
+.proc Multi5ConnectCheck
+	PHP
+	setaxy8
+	STZ Multi5Present
+:	; Wait for auto-poll to end
+	LDA VBLSTATUS
+	AND #1
+	BNE :-
+
+	; Enable strobe
+	STZ JOY0
+	LDA #1
+	STA f:JOY0
+	LDX #8
+:
+	LDA f:JOY0
+	LSR
+	LSR
+	ROL Multi5LeftPortStrobed
+	LDA f:JOY1
+	LSR
+	LSR
+	ROL Multi5RightPortStrobed
+	DEX
+	BNE :-
+
+	; Disable strobe and repoll
+	STZ JOY0
+	LDX #8
+:
+	LDA f:JOY0
+	LSR
+	LSR
+	ROL Multi5LeftPortStrobeless
+	LDA f:JOY1
+	LSR
+	LSR
+	ROL Multi5RightPortStrobeless
+	DEX
+	BNE :-
+
+	LDA Multi5LeftPortStrobed
+	CMP #$FF
+	BNE :+
+	LDA Multi5LeftPortStrobeless
+	CMP #$FF
+	BEQ :+
+	LDA #$80
+	STA Multi5Present
+:
+
+	LDA Multi5RightPortStrobed
+	CMP #$FF
+	BNE :+
+	LDA Multi5RightPortStrobeless
+	CMP #$FF
+	BEQ :+
+	LDA #$40
+	ORA Multi5Present
+	STA Multi5Present
+:
+
+	PLP
+	RTS
+.endproc
+	.byte "NINTENDO SHVC MULTI5 CONNECT CHECK Ver1.00"
+	.byte "END OF MULTI5 CONNECT CHECK"
+
+	.byte "START OF MOUSE BIOS"
+	; TODO
+
+
+	baseinc $00CBAE, $00D73B
+
+
+.proc CheckLAndRPressed
+.a8
+	LDA Player1Input+1
+	BNE @p1NotJustLR
+	LDA Player1Input
+	AND #$FF
+	CMP #$30 ; L and R
+	BNE @p1NotJustLR
+	LDA #$FF
+	STA PlayerRequestedClosing
+
+@p1NotJustLR:
+	LDA CurrentMouseButtons+1
+	AND #3
+	CMP #3
+	BNE @mouseNotLR
+	LDA #$FF
+	STA PlayerRequestedClosing
+
+@mouseNotLR:
+	LDA Player2Input+1
+	BNE @p2NotJustLR
+	LDA Player2Input
+	AND #$FF
+	CMP #$30 ; L and R
+	BNE @p2NotJustLR
+	LDA #$FF
+	STA PlayerRequestedClosing
+
+@p2NotJustLR:
+	RTS
+.endproc
+
+
+.proc UpdateHeldButtons
+	STZ AHeld
+	STZ BHeld
+	LDA MenuController
+	ASL
+	TAX
+	LDA MapSNES_BToGB_A
+	BEQ :+
+	JSR (UpdateHeldButtonsAB_YTable, X)
+	RTS
+
+:
+	JSR (UpdateHeldButtonsA_BYTable, X)
+	RTS
+.endproc
+
+UpdateHeldButtonsAB_YTable:
+	.word CheckP1AB_Y
+	.word CheckMouseAB
+	.word CheckP2AB_Y
+
+.proc CheckP1AB_Y
+.a8
+	LDA Player1Input
+	AND #$F
+	BEQ @connected
+	RTS
+
+@connected:
+	seta16
+	LDA Player1Input
+	BIT #$8080 ; A or B
+	BEQ @neitherANorB
+	seta8
+	LDA #1
+	STA AHeld
+	RTS
+
+@neitherANorB:
+	seta8
+	seta16
+	LDA Player1Input
+	BIT #$4000 ; Y
+	BEQ @noButton
+	seta8
+	LDA #1
+	STA BHeld
+	RTS
+
+@noButton:
+	seta8
+	RTS
+.endproc
+
+.proc CheckP2AB_Y
+.a8
+	LDA Player2Input
+	AND #$F
+	BEQ @connected
+	RTS
+
+@connected:
+	seta16
+	LDA Player2Input
+	BIT #$8080 ; A or B
+	BEQ @neitherANorB
+	seta8
+	LDA #1
+	STA AHeld
+	RTS
+
+@neitherANorB:
+	seta8
+	seta16
+	LDA Player2Input
+	BIT #$4000 ; Y
+	BEQ @noButton
+	seta8
+	LDA #1
+	STA BHeld
+	RTS
+
+@noButton:
+	seta8
+	RTS
+.endproc
+
+.proc CheckMouseAB
+.a8
+	LDA Player2Input
+	AND #$F
+	CMP #1
+	BEQ @connected
+	RTS
+
+@connected:
+	LDA CurrentMouseButtons+1
+	BIT #1
+	BEQ @rightNotHeld
+	LDA MouseRightHoldCounter
+	INC
+	CMP #3
+	BEQ @heldRightLongEnough
+	STA MouseRightHoldCounter
+	BRA @rightNotHeld
+@heldRightLongEnough:
+	LDA #1
+	STA AHeld
+
+@rightNotHeld:
+	LDA CurrentMouseButtons+1
+	BIT #2
+	BEQ @leftNotHeld
+	LDA MouseLeftHoldCounter
+	INC
+	CMP #3
+	BEQ @heldLeftLongEnough
+	STA MouseLeftHoldCounter
+	BRA @leftNotHeld
+@heldLeftLongEnough:
+	LDA #1
+	STA BHeld
+@leftNotHeld:
+
+	; Reset hold counters if buttons were released
+	LDA CurrentMouseButtons+1
+	BIT #1
+	BNE @notHoldingRight
+	STZ MouseRightHoldCounter
+@notHoldingRight:
+	LDA CurrentMouseButtons+1
+	BIT #2
+	BNE @notHoldingLeft
+	STZ MouseLeftHoldCounter
+@notHoldingLeft:
+	RTS
+.endproc
+
+
+UpdateHeldButtonsA_BYTable:
+	.word CheckP1A_BY
+	.word CheckMouseAB
+	.word CheckP2A_BY
+
+.proc CheckP1A_BY
+.a8
+	LDA Player1Input
+	AND #$F
+	BEQ @connected
+	RTS
+
+@connected:
+	seta16
+	LDA Player1Input
+	BIT #$0080 ; A
+	BEQ @notA
+	seta8
+	LDA #1
+	STA AHeld
+	RTS
+
+@notA:
+	seta8
+	seta16
+	LDA Player1Input
+	BIT #$C000 ; B or Y
+	BEQ @noButton
+	seta8
+	LDA #1
+	STA BHeld
+	RTS
+
+@noButton:
+	seta8
+	RTS
+.endproc
+
+.proc CheckP2A_BY
+.a8
+	LDA Player2Input
+	AND #$F
+	BEQ @connected
+	RTS
+
+@connected:
+	seta16
+	LDA Player2Input
+	BIT #$0080 ; A
+	BEQ @notA
+	seta8
+	LDA #1
+	STA AHeld
+	RTS
+
+@notA:
+	seta8
+	seta16
+	LDA Player2Input
+	BIT #$C000 ; Y
+	BEQ @noButton
+	seta8
+	LDA #1
+	STA BHeld
+	RTS
+
+@noButton:
+	seta8
+	RTS
+.endproc
+
+
+	baseinc $00D8A9, $00FFC0
 
 
 .segment "HEADER"
